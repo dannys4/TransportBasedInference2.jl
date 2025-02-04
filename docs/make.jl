@@ -1,4 +1,4 @@
-using Documenter, TransportBasedInference, Plots
+using Documenter, TransportBasedInference2, Plots
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
@@ -23,8 +23,8 @@ for example in examples
 end
 
 # makedocs(
-#     modules = [TransportBasedInference],
-#     sitename = "TransportBasedInference.jl",
+#     modules = [TransportBasedInference2],
+#     sitename = "TransportBasedInference2.jl",
 #     doctest = true,
 #     clean = true,
 #     pages = [
@@ -44,7 +44,7 @@ end
 makedocs(
             doctest = false,
             format = Documenter.HTML(),
-            sitename = "TransportBasedInference.jl",
+            sitename = "TransportBasedInference2.jl",
             authors = "Mathieu Le Provost",
             pages = Any[
                     "Home" => "index.md",
@@ -63,5 +63,5 @@ makedocs(
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
 deploydocs(
-    repo = "https://github.com/mleprovost/TransportBasedInference.jl.git"
+    repo = "https://github.com/dannys4/TransportBasedInference2.jl.git"
 )

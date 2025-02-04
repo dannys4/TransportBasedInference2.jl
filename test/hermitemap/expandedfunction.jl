@@ -1,4 +1,4 @@
-using TransportBasedInference: evaluate
+using TransportBasedInference2: evaluate
 
 @testset "Test active_dim for ProHermiteBasis" begin
     for B in [ProHermiteBasis(6); PhyHermiteBasis(6)]

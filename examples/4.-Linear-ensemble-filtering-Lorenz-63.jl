@@ -33,7 +33,7 @@
 #
 # [5] Spantini, A., Baptista, R. and Marzouk, Y., 2019. Coupling techniques for nonlinear ensemble filtering. arXiv preprint arXiv:1907.00389.
 
-# To perform sequential inference in `TransportBasedInference`, we will go through the following steps:
+# To perform sequential inference in `TransportBasedInference2`, we will go through the following steps:
 #
 # * **Specify the problem**: Define the state-space model: initial condition, dynamical and observation models (including process and observation noise)
 # * **Specify the inflation parameters**: Determine the covariance inflation to counter balance the underestimation  of the posterior covariance matrices with a finite ensemble size.
@@ -42,7 +42,7 @@
 
 using Revise
 using LinearAlgebra
-using TransportBasedInference
+using TransportBasedInference2
 using Statistics
 using Distributions
 
@@ -106,7 +106,7 @@ Tf = ceil(Int64, (tf-t0)/Δtobs)
 #
 # We assume that the state is fully observable, i.e. $h(x, t) = x$.
 #
-# Note: the right-hand-side of the Lorenz-63 model is implemented in `TransportBasedInference` under the name `lorenz63!`. The code is reproduced for convenience.
+# Note: the right-hand-side of the Lorenz-63 model is implemented in `TransportBasedInference2` under the name `lorenz63!`. The code is reproduced for convenience.
 #
 # ```
 # function lorenz63!(du,u,p,t)
@@ -134,7 +134,7 @@ F = StateSpace(lorenz63!, h)
 ϵy = AdditiveInflation(Ny, zeros(Ny), σy)
 # -
 
-# Different types of inflation have been implemented in `TransportBasedInference`:
+# Different types of inflation have been implemented in `TransportBasedInference2`:
 #         
 # * `IdentityInflation` applies the identity transformation
 # * `AdditiveInflation` applies Gaussian noise to the ensemble members
@@ -143,7 +143,7 @@ F = StateSpace(lorenz63!, h)
 #
 # They are all subtypes of the abstract type `InflationType`.
 #
-# New types of inflation can easily be created and integrated in the existing tools of `TransportBasedInference`, as long as the satisfy the following requirements: 
+# New types of inflation can easily be created and integrated in the existing tools of `TransportBasedInference2`, as long as the satisfy the following requirements: 
 #
 # * `MyInflationType <: InflationType` 
 # * `(A::MyInflationType)(X::AbstractMatrix{Float64})` is defined
@@ -160,9 +160,9 @@ x0 = rand(model.π0)
 
 data = generate_lorenz63(model, x0, Tf);
 
-# In `TransportBasedInference`, we use the following convention to store the state and observation variables. The state and observation variables of the different ensemble members are stored in a common matrix `X`. The different columns store the different samples. The first entries of a column contains the observation variables, while the latter contains the state variables. This convention might seem confusing at first, but it is very convenient for conditional density estimation, see notebook 2 or 5 for instance.
+# In `TransportBasedInference2`, we use the following convention to store the state and observation variables. The state and observation variables of the different ensemble members are stored in a common matrix `X`. The different columns store the different samples. The first entries of a column contains the observation variables, while the latter contains the state variables. This convention might seem confusing at first, but it is very convenient for conditional density estimation, see notebook 2 or 5 for instance.
 
-# Different ensemble filters have been implemented in `TransportBasedInference`:
+# Different ensemble filters have been implemented in `TransportBasedInference2`:
 #         
 # * `IdFilter`: a trivial identity filter
 #
@@ -172,7 +172,7 @@ data = generate_lorenz63(model, x0, Tf);
 #
 # * `StochMapFilter`: the stochastic map filter (SMF) developed by Spantini et al. [5]. This filter is a nonlinear generalization of the stochastic EnKF based on measure transport. This filter is presented in the notebooks 6 & 7.
 #
-# New ensemble filter can easily be created and integrated in the existing tools of `TransportBasedInference`, as long as they satisfy the following requirements: 
+# New ensemble filter can easily be created and integrated in the existing tools of `TransportBasedInference2`, as long as they satisfy the following requirements: 
 #
 # * `MyFilterType <: SeqFilter` 
 # * `(A::MyFilterType)(X::AbstractMatrix{Float64}, ystar, t)` is defined, where `ystar` is the observation to assimilate in the forecast ensemble `X`.

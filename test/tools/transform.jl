@@ -12,19 +12,19 @@
     @test norm(L.μ)<1e-6
     @test norm(L.L - Matrix(1.0*I, Nx, Nx))<1e-6
 
-    TransportBasedInference.transform!(L, X)
+    TransportBasedInference2.transform!(L, X)
     @test norm(X - X0)<1e-6
-    TransportBasedInference.itransform!(L, X)
+    TransportBasedInference2.itransform!(L, X)
     @test norm(X - X0)<1e-6
 
     L = LinearTransform(X; diag = true)
 
-    TransportBasedInference.transform!(L, X);
+    TransportBasedInference2.transform!(L, X);
 
     @test norm(mean(X;dims = 2))<1e-10
     @test norm(std(X; dims = 2)[:,1] - ones(Nx))<1e-10
 
-    TransportBasedInference.itransform!(L, X)
+    TransportBasedInference2.itransform!(L, X)
 
     @test norm(mean(X;dims = 2) - mean(X0;dims = 2))<1e-10
     @test norm(cov(X')  - cov(X0'))<1e-10
@@ -42,20 +42,20 @@
     @test norm(L.μ)<1e-6
     @test norm(L.L - Matrix(1.0*I, Nx, Nx))<1e-6
 
-    TransportBasedInference.transform!(L, X)
+    TransportBasedInference2.transform!(L, X)
     @test norm(X - X0)<1e-6
-    TransportBasedInference.itransform!(L, X)
+    TransportBasedInference2.itransform!(L, X)
     @test norm(X - X0)<1e-6
 
 
     L = LinearTransform(X; diag = true)
 
-    TransportBasedInference.transform!(L, X);
+    TransportBasedInference2.transform!(L, X);
 
     @test norm(mean(X;dims = 2))<1e-10
     @test norm(std(X; dims = 2)[:,1] - ones(Nx))<1e-10
 
-    TransportBasedInference.itransform!(L, X)
+    TransportBasedInference2.itransform!(L, X)
 
     @test norm(mean(X; dims = 2) - mean(X0; dims = 2))<1e-10
     @test norm(cov(X')  - cov(X0'))<1e-10
@@ -69,12 +69,12 @@
     X0 = deepcopy(X)
     L = LinearTransform(X; diag = false)
 
-    TransportBasedInference.transform!(L, X);
+    TransportBasedInference2.transform!(L, X);
 
     @test norm(mean(X;dims = 2))<1e-10
     @test norm(cov(X')  - I)<1e-10
 
-    TransportBasedInference.itransform!(L, X)
+    TransportBasedInference2.itransform!(L, X)
 
     @test norm(mean(X;dims = 2) - mean(X0; dims = 2))<1e-10
     @test norm(cov(X')  - cov(X0'))<1e-10

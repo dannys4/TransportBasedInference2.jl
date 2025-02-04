@@ -54,7 +54,7 @@
 
 using Revise
 using LinearAlgebra
-using TransportBasedInference
+using TransportBasedInference2
 using Statistics
 using Distributions
 using OrdinaryDiffEq

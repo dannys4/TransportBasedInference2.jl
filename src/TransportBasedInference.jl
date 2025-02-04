@@ -1,4 +1,4 @@
-module TransportBasedInference
+module TransportBasedInference2
 
 using ColorTypes
 using DocStringExtensions

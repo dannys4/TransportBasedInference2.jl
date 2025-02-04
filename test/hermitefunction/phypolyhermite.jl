@@ -1,6 +1,6 @@
 
 using Polynomials
-using TransportBasedInference: derivative, vander
+using TransportBasedInference2: derivative, vander
 
 @testset "Test physical Hermite polynomials"   begin
 

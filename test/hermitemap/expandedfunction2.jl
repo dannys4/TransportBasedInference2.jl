@@ -1,4 +1,4 @@
-using TransportBasedInference: evaluate
+using TransportBasedInference2: evaluate
 
 @testset "Test tools for expanded function Nx = 1 " begin
 

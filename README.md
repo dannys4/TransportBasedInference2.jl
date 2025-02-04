@@ -1,10 +1,10 @@
-# TransportBasedInference.jl
+# TransportBasedInference2.jl
 
 *A Julia package for Bayesian inference with transport maps*
 
 ![logo](logo.png)
 
-[![Build Status](https://github.com/mleprovost/TransportBasedInference.jl/workflows/CI/badge.svg)](https://github.com/mleprovost/TransportBasedInference.jl/actions)
+[![Build Status](https://github.com/dannys4/TransportBasedInference2.jl/workflows/CI/badge.svg)](https://github.com/dannys4/TransportBasedInference2.jl/actions)
 
 
 The objective of this package is to allow for easy and fast resolution of Bayesian inference problems using transport maps. The package provides tools for:
@@ -14,15 +14,15 @@ The objective of this package is to allow for easy and fast resolution of Bayesi
 
 ## Installation
 
-**TransportBasedInference.jl** is registered in the general Julia registry. To install, type
+**TransportBasedInference2.jl** is registered in dannys4Registry registries. To install, type TODO
 e.g.,
 ```julia
-] add TransportBasedInference
+] add TransportBasedInference2
 ```
 
 Then, in any version, type
 ```julia
-julia> using TransportBasedInference
+julia> using TransportBasedInference2
 ```
 
 ## Tutorials

@@ -2,8 +2,8 @@ using Test
 
 using LinearAlgebra, Statistics
 using OrdinaryDiffEq
-using TransportBasedInference
-using TransportBasedInference: evaluate, optimize
+using TransportBasedInference2
+using TransportBasedInference2: evaluate, optimize
 using ForwardDiff
 using FastGaussQuadrature
 using SpecialFunctions

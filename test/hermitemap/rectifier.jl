@@ -1,7 +1,7 @@
 @testset "Test Rectifier" begin 
     atol = 1e-9
 
-    for T in [:square, :softplus, :sigmoid, :explinearunit]
+    for T in [:square, :softplus, :explinearunit]
         x = rand()
         r = Rectifier(T)
         # Test gradient

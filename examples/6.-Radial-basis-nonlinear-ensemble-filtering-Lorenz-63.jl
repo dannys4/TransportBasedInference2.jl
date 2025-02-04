@@ -30,7 +30,7 @@
 # [5] Spantini, A., Baptista, R. and Marzouk, Y., 2019. Coupling techniques for nonlinear ensemble filtering. arXiv preprint arXiv:1907.00389.
 
 # ### The basic steps
-# To carry out sequential inference in `TransportBasedInference`, we need to carry out a few basic steps:
+# To carry out sequential inference in `TransportBasedInference2`, we need to carry out a few basic steps:
 # * **Specify the problem**: Define the state-space model: initial condition, dynamical and observation models (including process and observation noise)
 # * **Specify the inflation parameters**: Determine the levels of covariance inflation to properly balance the dynamical system and the observations from the truth system
 # * **Specify the filter**: Choose the ensemble filter to assimilate the observations in the state estimate
@@ -40,7 +40,7 @@
 
 using Revise
 using LinearAlgebra
-using TransportBasedInference
+using TransportBasedInference2
 using Statistics
 using Distributions
 using OrdinaryDiffEq

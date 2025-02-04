@@ -1,4 +1,4 @@
-import TransportBasedInference: optimize
+import TransportBasedInference2: optimize
 
 @testset "Verify clearcoeff!" begin
   m = 5
