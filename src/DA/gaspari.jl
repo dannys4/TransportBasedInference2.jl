@@ -1,12 +1,16 @@
-export Localization, Locgaspari, periodicmetric!, periodicmetric, cartesianmetric, gaspari
+export Localization, Locgaspari, Locgaspari_symm, periodicmetric!, periodicmetric, cartesianmetric, gaspari
 
+using SparseArrays
 
+struct Localization{T<:AbstractMatrix{Float64}}
+    ρX::T
+end
 
-struct Localization
-    L::Float64
-    Gxx::Function
-    Gxy::Function
-    Gyy::Function
+function Localization(Nx::Int, L, metric::Function; kernel=Locgaspari_symm, is_sparse=false, is_herm=true)
+    ρX_dense = kernel((Nx, Nx), L, metric)
+    ρX_sparse = is_sparse ? sparse(ρX_dense) : ρX_dense
+    ρX = is_herm ? Hermitian(ρX_sparse, :U) : ρX_sparse
+    Localization(ρX)
 end
 
 # function Locgaspari(d, L, periodic::Bool)
@@ -32,26 +36,36 @@ end
 
 # Some metric for the distance between variables
 
-periodicmetric!(i,j,d) = min(abs(j - i), abs(-d + j  - i), abs(d + j - i))
-periodicmetric(d) = (i,j) -> periodicmetric!(i,j,d)
+periodicmetric!(i, j, d) = min(abs(j - i), abs(-d + j - i), abs(d + j - i))
+periodicmetric(d) = (i, j) -> periodicmetric!(i, j, d)
 
-cartesianmetric(i,j) = abs(i-j)
+cartesianmetric(i, j) = abs(i - j)
 
-# Construct a possibly non-square localisation matrix using
+# Construct a possibly non-symm localisation matrix using
 # the Gaspari-Cohn kernel
-function Locgaspari(d::Tuple{Int64, Int64}, L, metric::Function)
+function Locgaspari(d::NTuple{2,Int}, L, metric::Function)
     dx, dy = d
-    G = zeros(dx,dy)
-    @inbounds for i=1:dx
-                 for j=1:dy
-                 G[i,j] = gaspari(metric(i,j)/L)
-                 end
-               end
+    G = zeros(dx, dy)
+    @inbounds for i = 1:dx, j = 1:dy
+        G[i, j] = gaspari(metric(i, j) / L)
+    end
+    return G
+end
+
+# Construct a possibly non-symm localisation matrix using
+# the Gaspari-Cohn kernel
+function Locgaspari_symm(dx::NTuple{2,Int}, L, metric::Function)
+    Nx = dx[1]
+    @assert dx[2] == Nx
+    G = zeros(Nx, Nx)
+    @inbounds for i = 1:Nx, j = i:Nx
+        G[i, j] = gaspari(abs(metric(i, j) / L))
+    end
     return G
 end
 
 # Caspari-Cohn kernel, Formula found in Data assimilation in the geosciences:
 # An overview of methods, issues, and perspectives
-g1(r) = 1 - (5/3)*r^2 +(5/8)*r^3 +(1/2)*r^4 -0.25*r^5
-g2(r) = 4 - 5r +(5/3)*r^2 + (5/8)*r^3 -(1/2)*r^4 +(1/12)*r^5 -(2/3)*r^(-1)
-gaspari(r) = abs(r)>2.0 ? 0.0 : abs(r)<1.0 ? g1(abs(r)) : g2(abs(r))
+@inline g1(r) = 1 - (5 / 3) * r^2 + (5 / 8) * r^3 + (1 / 2) * r^4 - 0.25 * r^5
+@inline g2(r) = 4 - 5r + (5 / 3) * r^2 + (5 / 8) * r^3 - (1 / 2) * r^4 + (1 / 12) * r^5 - (2 / 3) * r^(-1)
+@inline gaspari(r) = r > 2.0 ? 0.0 : r < 1.0 ? g1(r) : g2(r)
