@@ -1,5 +1,6 @@
 module TransportBasedInference2
 
+using LinearMaps
 using ColorTypes
 using DocStringExtensions
 using Distributions

@@ -2,7 +2,7 @@ export Localization, Locgaspari, Locgaspari_symm, periodicmetric!, periodicmetri
 
 using SparseArrays
 
-struct Localization{T<:AbstractMatrix{Float64}}
+struct Localization{T<:Union{AbstractMatrix{Float64},LinearMap{Float64}}}
     ρX::T
 end
 

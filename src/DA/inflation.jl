@@ -2,9 +2,9 @@
 import Statistics: mean, cov
 
 
-export  InflationType, IdentityInflation, AdditiveInflation,
-        MultiplicativeInflation, MultiAddInflation,
-        exactn
+export InflationType, IdentityInflation, AdditiveInflation,
+    MultiplicativeInflation, MultiAddInflation,
+    exactn, has_nonzero_mean
 
 
 
@@ -16,7 +16,7 @@ A function to create a 1D sample with exactly mean 0 and covariance 1
 """
 function exactn(N)
     a = deepcopy(randn(N))
-    return (a .- mean(a))./std(a)
+    return (a .- mean(a)) ./ std(a)
 end
 
 
@@ -69,54 +69,58 @@ $(TYPEDFIELDS)
 - `AdditiveInflation(m::Array{Float64,1}, σ::Float64)`
 """
 
-struct AdditiveInflation <: InflationType
+struct AdditiveInflation{MeanT<:Union{AbstractVector{<:Real},Nothing},CovT,StdT} <: InflationType
     "Dimension of the state vector"
     Nx::Int64
 
     "Mean of the additive inflation"
-    m::Array{Float64,1}
+    m::MeanT
 
     "Covariance of the additive inflation"
-    Σ::Union{Array{Float64,2}, Diagonal{Float64}}
+    Σ::CovT
 
     "Square-root of the covariance matrix"
-    σ::Union{Array{Float64,2}, Diagonal{Float64}}
+    σ::StdT
 end
 
 # Some convenient constructors for multivariate Gaussian distributions
 # By default, the distribution of the additive inflation α is a multivariate
- # normal distribution with zero mean and identity as the covariance matrix
-@inline AdditiveInflation(Nx::Int64) = AdditiveInflation(Nx, zeros(Nx),  Diagonal(ones(Nx)), Diagonal(ones(Nx)))
+# normal distribution with zero mean and identity as the covariance matrix
+@inline AdditiveInflation(Nx::Int64) = AdditiveInflation(Nx, zeros(Nx), Diagonal(ones(Nx)), Diagonal(ones(Nx)))
 
-function AdditiveInflation(Nx::Int64, m::Array{Float64,1}, Σ::Union{Array{Float64,2}, Diagonal{Float64}})
-@assert Nx==size(m,1) "Error dimension of the mean"
-@assert Nx==size(Σ,1)==size(Σ,2) "Error dimension of the covariance matrix"
+function AdditiveInflation(Nx::Int64, m::Array{Float64,1}, Σ::Union{Array{Float64,2},Diagonal{Float64}})
+    @assert Nx == size(m, 1) "Error dimension of the mean"
+    @assert Nx == size(Σ, 1) == size(Σ, 2) "Error dimension of the covariance matrix"
 
-return AdditiveInflation(Nx, m, Σ, sqrt(Σ))
+    return AdditiveInflation(Nx, m, Σ, sqrt(Σ))
 
 end
 
 function AdditiveInflation(Nx::Int64, m::Array{Float64,1}, σ::Array{Float64,1})
-@assert Nx==size(m,1) "Error dimension of the mean"
-@assert Nx==size(σ,1) "Error dimension of the std vector"
+    @assert Nx == size(m, 1) "Error dimension of the mean"
+    @assert Nx == size(σ, 1) "Error dimension of the std vector"
 
-return AdditiveInflation(Nx, m, Diagonal(σ .^2), Diagonal(σ))
+    return AdditiveInflation(Nx, m, Diagonal(σ .^ 2), Diagonal(σ))
 
 end
 
 function AdditiveInflation(Nx::Int64, m::Array{Float64,1}, σ::Float64)
-@assert Nx==size(m,1) "Error dimension of the mean"
+    @assert Nx == size(m, 1) "Error dimension of the mean"
 
-return AdditiveInflation(Nx, m, Diagonal(σ^2*ones(Nx)), Diagonal(σ*ones(Nx)))
+    return AdditiveInflation(Nx, m, σ^2 * I, σ * I)
 
 end
 
 function AdditiveInflation(m::Array{Float64,1}, σ::Float64)
-    Nx = size(m,1)
-    return AdditiveInflation(Nx, m, Diagonal(σ^2*ones(Nx)), Diagonal(σ*ones(Nx)))
+    Nx = size(m, 1)
+    return AdditiveInflation(Nx, m, σ^2 * I, σ * I)
 end
 
-Base.size(A::AdditiveInflation)  = A.Nx
+function AdditiveInflation(Nx::Int, σ::Float64)
+    return AdditiveInflation(Nx, nothing, σ^2 * I, σ * I)
+end
+
+Base.size(A::AdditiveInflation) = A.Nx
 mean(A::AdditiveInflation) = A.m
 cov(A::AdditiveInflation) = A.Σ
 
@@ -128,18 +132,18 @@ Apply the additive inflation `A` to the lines `start` to `final` of an ensemble 
 i.e. xⁱ -> xⁱ + ϵⁱ with ϵⁱ ∼ `A.α`.
 """
 function (A::AdditiveInflation)(X, start::Int64, final::Int64; laplace::Bool=false)
-    Ne = size(X,2)
+    Ne = size(X, 2)
     @assert A.Nx == final - start + 1 "final-start + 1 doesn't match the length of the additive noise"
     # @show X[start:final, 1]
     if laplace == false
-        @inbounds for i=1:Ne
-            col = view(X, start:final, i)
-            col .+= A.m + A.σ*randn(A.Nx)
+        @inbounds for i = 1:Ne
+            col = @view X[start:final, i]
+            col .+= A.m + A.σ * randn(A.Nx)
         end
     else
-        @inbounds for i=1:Ne
+        @inbounds for i = 1:Ne
             col = view(X, start:final, i)
-            col .+= A.m + sqrt(2.0)*A.σ*randn(Laplace(), A.Nx)
+            col .+= A.m + sqrt(2.0) * A.σ * randn(Laplace(), A.Nx)
         end
     end
     # @show X[start:final, 1]
@@ -152,7 +156,7 @@ end
 Apply the additive inflation `A` to an ensemble matrix `X`,
 i.e. xⁱ -> xⁱ + ϵⁱ with ϵⁱ ∼ `A.α`.
 """
-(A::AdditiveInflation)(X; laplace::Bool=false) = A(X, 1, size(X,1); laplace = laplace)
+(A::AdditiveInflation)(X; laplace::Bool=false) = A(X, 1, size(X, 1); laplace=laplace)
 
 """
         (A::AdditiveInflation)(x::Array{Float64,1})
@@ -161,10 +165,15 @@ Apply the additive inflation `A` to the vector `x`,
 i.e. x -> x + ϵ with ϵ ∼ `A.α`.
 """
 function (A::AdditiveInflation)(x::Array{Float64,1})
-    x .+= A.m + A.σ*randn(A.Nx)
+    if has_nonzero_mean(A)
+        x .+= A.m + A.σ * randn(A.Nx)
+    else
+        mul!(x, A.σ, randn(A.Nx), true, true)
+    end
     return x
 end
 
+has_nonzero_mean(A::AdditiveInflation) = !(isnothing(A.m) || all(iszero, A.m))
 
 """
     MultiplicativeInflation <: InflationType
@@ -189,11 +198,11 @@ Apply the multiplicative inflation `A` to the lines `start` to `final` of an ens
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  with β scalar, usually ∼ 1.0.
 """
 function (A::MultiplicativeInflation)(X, start::Int64, final::Int64)
-    Ne = size(X,2)
-    X̂ = copy(mean(view(X, start:final,:), dims = 2)[:,1])
-    @inbounds for i=1:Ne
+    Ne = size(X, 2)
+    X̂ = copy(mean(view(X, start:final, :), dims=2)[:, 1])
+    @inbounds for i = 1:Ne
         col = view(X, start:final, i)
-        col .= (1.0-A.β)*X̂ + A.β*col
+        col .= (1.0 - A.β) * X̂ + A.β * col
     end
 end
 
@@ -227,7 +236,7 @@ Define multiplico-additive inflation: xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ wit
 - `MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Array{Float64,1})`
 - `MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Float64)`
 """
-struct MultiAddInflation <: InflationType
+struct MultiAddInflation{Mu<:Union{Vector{Float64},Nothing}} <: InflationType
     "Dimension of the state vector"
     Nx::Int64
 
@@ -235,13 +244,13 @@ struct MultiAddInflation <: InflationType
     β::Real
 
     "Mean of the additive inflation"
-    m::Array{Float64,1}
+    m::Mu
 
     "Covariance of the additive inflation"
-    Σ::Union{Array{Float64,2}, Diagonal{Float64}}
+    Σ::Union{Array{Float64,2},Diagonal{Float64}}
 
     "Square-root of the covariance matrix"
-    σ::Union{Array{Float64,2}, Diagonal{Float64}}
+    σ::Union{Array{Float64,2},Diagonal{Float64}}
 end
 
 # Some convenient constructors for multivariate Gaussian additive distributions
@@ -249,31 +258,31 @@ end
 # factor β is set to 1.0, and  α is a  multivariate
 # normal distribution with zero mean and identity as the covariance matrix
 function MultiAddInflation(Nx::Int)
-    return MultiAddInflation(Nx, 1.0, zeros(Nx), Diagonal(ones(Nx)), Diagonal(ones(Nx)))
+    return MultiAddInflation(Nx, 1.0, nothing, Diagonal(ones(Nx)), Diagonal(ones(Nx)))
 end
 
 
-function MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, Σ)
-    @assert β>0.0 "The multiplicative inflation must be >0.0"
-    @assert Nx==size(m,1) "Error dimension of the mean"
-    @assert Nx==size(Σ,1)==size(Σ,2) "Error dimension of the covariance matrix"
+function MultiAddInflation(Nx::Int64, β::Float64, m::Vector{Float64}, Σ)
+    @assert β > 0.0 "The multiplicative inflation must be >0.0"
+    @assert Nx == size(m, 1) "Error dimension of the mean"
+    @assert Nx == size(Σ, 1) == size(Σ, 2) "Error dimension of the covariance matrix"
 
     return MultiAddInflation(Nx, β, m, Σ, sqrt(Σ))
 end
 
-function MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Array{Float64,1})
-    @assert β>0.0 "The multiplicative inflation must be >0.0"
-    @assert Nx==size(m,1) "Error dimension of the mean"
-    @assert Nx==size(σ,1) "Error dimension of the std vector"
+function MultiAddInflation(Nx::Int64, β::Float64, m::Vector{Float64}, σ::Vector{Float64})
+    @assert β > 0.0 "The multiplicative inflation must be >0.0"
+    @assert Nx == size(m, 1) "Error dimension of the mean"
+    @assert Nx == size(σ, 1) "Error dimension of the std vector"
 
-    return MultiAddInflation(Nx, β, m, Diagonal(σ .^2), Diagonal(σ))
+    return MultiAddInflation(Nx, β, m, Diagonal(σ .^ 2), Diagonal(σ))
 end
 
-function MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Float64)
-    @assert β>0.0 "The multiplicative inflation must be >0.0"
-    @assert Nx==size(m,1) "Error dimension of the mean"
+function MultiAddInflation(Nx::Int64, β::Float64, m::Vector{Float64}, σ::Float64)
+    @assert β > 0.0 "The multiplicative inflation must be >0.0"
+    @assert Nx == size(m, 1) "Error dimension of the mean"
 
-    return MultiAddInflation(Nx, β, m, Diagonal(σ^2*ones(Nx)), Diagonal(σ*ones(Nx)))
+    return MultiAddInflation(Nx, β, m, Diagonal(σ^2 * ones(Nx)), Diagonal(σ * ones(Nx)))
 end
 
 """
@@ -282,8 +291,8 @@ end
 Return the dimension of the additive inflation of `A`.
 """
 Base.size(A::MultiAddInflation) = A.Nx
-mean(A::MultiAddInflation) = A.m
-cov(A::MultiAddInflation)  = A.Σ
+mean(A::MultiAddInflation) = isnothing(A.m) ? zeros(A.Nx) : A.m
+cov(A::MultiAddInflation) = A.Σ
 
 """
         (A::MultiAddInflation)(X, start::Int64, final::Int64)
@@ -294,12 +303,18 @@ i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ with ϵⁱ ∼ `A.α` and β a scala
 """
 function (A::MultiAddInflation)(X, start::Int64, final::Int64)
     # @assert A.Nx == final - start + 1 "Dimension does not match"
-    Ne = size(X,2)
+    Ne = size(X, 2)
     # X̂ = copy(mean(view(X, start:final,:), dims = 2)[:,1])
-    μX = mean(X[start:final,:], dims= 2)[:,1]
-    @inbounds for i=1:Ne
-        col = view(X, start:final, i)
-        col .= A.β*(col - μX) +  μX + A.m + A.σ*randn(A.Nx)
+    μX = mean(X[start:final, :], dims=2)[:, 1]
+    randn!(@view(X[start:final, :]))
+    @inbounds for i = 1:Ne
+        col = @view X[start:final, i]
+        # col .= A.β * (col - μX) + μX + A.m
+        for col_idx in eachindex(col)
+            m_val = isnothing(A.m) ? 0. : A.m[col_idx]
+            col_val = col[col_idx]
+            col[col_idx] = muladd(A.β, col_val - μX[col_idx], μX[col_idx] + m_val)
+        end
     end
 end
 
@@ -310,4 +325,4 @@ end
 Apply the multiplico-additive inflation `A` to the ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ with ϵⁱ ∼ `A.α` and β a scalar, usually ∼ 1.0.
 """
-(A::MultiAddInflation)(X) = A(X, 1, size(X,1))
+(A::MultiAddInflation)(X) = A(X, 1, size(X, 1))
