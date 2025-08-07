@@ -21,6 +21,7 @@ using Polynomials
 using ProgressMeter
 using QuadGK
 using RecipesBase
+using Random
 using Roots
 using SpecialFunctions
 using Statistics

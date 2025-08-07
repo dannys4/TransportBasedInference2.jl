@@ -236,7 +236,7 @@ Define multiplico-additive inflation: xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ wit
 - `MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Array{Float64,1})`
 - `MultiAddInflation(Nx::Int64, β::Float64, m::Array{Float64,1}, σ::Float64)`
 """
-struct MultiAddInflation{Mu<:Union{Vector{Float64},Nothing}} <: InflationType
+struct MultiAddInflation{Mu<:Union{Vector{Float64},Nothing}, T} <: InflationType
     "Dimension of the state vector"
     Nx::Int64
 
@@ -247,10 +247,10 @@ struct MultiAddInflation{Mu<:Union{Vector{Float64},Nothing}} <: InflationType
     m::Mu
 
     "Covariance of the additive inflation"
-    Σ::Union{Array{Float64,2},Diagonal{Float64}}
+    Σ::T
 
     "Square-root of the covariance matrix"
-    σ::Union{Array{Float64,2},Diagonal{Float64}}
+    σ::T
 end
 
 # Some convenient constructors for multivariate Gaussian additive distributions
@@ -282,7 +282,7 @@ function MultiAddInflation(Nx::Int64, β::Float64, m::Vector{Float64}, σ::Float
     @assert β > 0.0 "The multiplicative inflation must be >0.0"
     @assert Nx == size(m, 1) "Error dimension of the mean"
 
-    return MultiAddInflation(Nx, β, m, Diagonal(σ^2 * ones(Nx)), Diagonal(σ * ones(Nx)))
+    return MultiAddInflation(Nx, β, m, σ^2*I, σ*I)
 end
 
 """
@@ -294,6 +294,14 @@ Base.size(A::MultiAddInflation) = A.Nx
 mean(A::MultiAddInflation) = isnothing(A.m) ? zeros(A.Nx) : A.m
 cov(A::MultiAddInflation) = A.Σ
 
+@inline function scale_noise!(A::MultiAddInflation, noise::AbstractArray)
+    if A.σ isa UniformScaling
+        noise .*= A.σ.λ
+    else
+        noise .= A.σ * noise.σ
+    end
+end
+
 """
         (A::MultiAddInflation)(X, start::Int64, final::Int64)
 
@@ -301,19 +309,21 @@ cov(A::MultiAddInflation) = A.Σ
 Apply the multiplicat inflation `A` to the lines `start` to `final` of an ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ with ϵⁱ ∼ `A.α` and β a scalar, usually ∼ 1.0.
 """
-function (A::MultiAddInflation)(X, start::Int64, final::Int64)
+function (A::MultiAddInflation)(X::AbstractMatrix{T}, start::Int64, final::Int64) where {T}
     # @assert A.Nx == final - start + 1 "Dimension does not match"
     Ne = size(X, 2)
     # X̂ = copy(mean(view(X, start:final,:), dims = 2)[:,1])
-    μX = mean(X[start:final, :], dims=2)[:, 1]
-    randn!(@view(X[start:final, :]))
+    μX = vec(mean(@view(X[start:final, :]), dims=2))
+    rand_space = Vector{T}(undef, final-start + 1)
     @inbounds for i = 1:Ne
+        randn!(rand_space)
+        scale_noise!(A, rand_space)
         col = @view X[start:final, i]
         # col .= A.β * (col - μX) + μX + A.m
         for col_idx in eachindex(col)
             m_val = isnothing(A.m) ? 0. : A.m[col_idx]
             col_val = col[col_idx]
-            col[col_idx] = muladd(A.β, col_val - μX[col_idx], μX[col_idx] + m_val)
+            col[col_idx] = muladd(A.β, col_val - μX[col_idx], μX[col_idx] + m_val + A.σ*rand_space[col_idx])
         end
     end
 end
