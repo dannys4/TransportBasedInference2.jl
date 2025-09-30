@@ -1,4 +1,4 @@
-export Localization, Locgaspari, Locgaspari_symm, periodicmetric!, periodicmetric, cartesianmetric, gaspari
+export Localization, Locgaspari, Locgaspari_symm, periodicmetric, PeriodicMetric, cartesianmetric, gaspari
 
 using SparseArrays
 
@@ -6,7 +6,8 @@ struct Localization{T<:Union{AbstractMatrix{Float64},LinearMap{Float64}}}
     ρX::T
 end
 
-function Localization(Nx::Int, L, metric::Function; kernel=Locgaspari_symm, is_sparse=false, is_herm=true)
+function Localization(Nx::Int, L, metric::Function; kernel=nothing, is_sparse=false, is_herm=true)
+    isnothing(kernel) && (kernel = is_herm ? Locgaspari_symm : Locgaspari)
     ρX_dense = kernel((Nx, Nx), L, metric)
     ρX_sparse = is_sparse ? sparse(ρX_dense) : ρX_dense
     ρX = is_herm ? Hermitian(ρX_sparse, :U) : ρX_sparse
@@ -35,9 +36,13 @@ end
 # end
 
 # Some metric for the distance between variables
-
-periodicmetric!(i, j, d) = min(abs(j - i), abs(-d + j - i), abs(d + j - i))
-periodicmetric(d) = (i, j) -> periodicmetric!(i, j, d)
+function periodicmetric(i, j, d)
+    dist1 = abs(j - i)
+    dist2 = abs((j - d) - i)
+    dist3 = abs(j - (i - d))
+    min(dist1, dist2, dist3)
+end
+PeriodicMetric(d) = (i, j) -> periodicmetric(i, j, d)
 
 cartesianmetric(i, j) = abs(i - j)
 
