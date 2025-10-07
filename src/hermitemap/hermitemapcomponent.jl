@@ -1,28 +1,28 @@
-export  HermiteMapComponent,
-        αreg,
-        EmptyHermiteMapComponent,
-        getbasis,
-        ncoeff,
-        getcoeff,
-        setcoeff!,
-        clearcoeff!,
-        getidx,
-        active_dim,
-        evaluate!,
-        evaluate,
-        log_pdf!,
-        log_pdf,
-        grad_x_log_pdf!,
-        grad_x_log_pdf,
-        hess_x_log_pdf!,
-        hess_x_log_pdf,
-        reduced_hess_x_log_pdf!,
-        reduced_hess_x_log_pdf,
-        mean_hess_x_log_pdf!,
-        mean_hess_x_log_pdf,
-        negative_log_likelihood!,
-        negative_log_likelihood,
-        hess_negative_log_likelihood!
+export HermiteMapComponent,
+    αreg,
+    EmptyHermiteMapComponent,
+    getbasis,
+    ncoeff,
+    getcoeff,
+    setcoeff!,
+    clearcoeff!,
+    getidx,
+    active_dim,
+    evaluate!,
+    evaluate,
+    log_pdf!,
+    log_pdf,
+    grad_x_log_pdf!,
+    grad_x_log_pdf,
+    hess_x_log_pdf!,
+    hess_x_log_pdf,
+    reduced_hess_x_log_pdf!,
+    reduced_hess_x_log_pdf,
+    mean_hess_x_log_pdf!,
+    mean_hess_x_log_pdf,
+    negative_log_likelihood!,
+    negative_log_likelihood,
+    hess_negative_log_likelihood!
 
 
 """
@@ -49,34 +49,34 @@ function HermiteMapComponent(I::IntegratedFunction; α::Float64=αreg)
     return HermiteMapComponent(I.m, I.Nψ, I.Nx, I, α)
 end
 
-function HermiteMapComponent(m::Int64, Nx::Int64, idx::Array{Int64,2}, coeff::Array{Float64,1}; α::Float64 = αreg, b::String="CstProHermiteBasis")
-    Nψ = size(coeff,1)
-    @assert size(coeff,1) == size(idx,1) "Wrong dimension"
+function HermiteMapComponent(m::Int64, Nx::Int64, idx::Array{Int64,2}, coeff::Array{Float64,1}; α::Float64=αreg, b::String="CstProHermiteBasis")
+    Nψ = size(coeff, 1)
+    @assert size(coeff, 1) == size(idx, 1) "Wrong dimension"
     if b ∈ ["ProHermiteBasis"; "PhyHermiteBasis";
-            "CstProHermiteBasis"; "CstPhyHermiteBasis";
-            "CstLinProHermiteBasis"; "CstLinPhyHermiteBasis"]
+        "CstProHermiteBasis"; "CstPhyHermiteBasis";
+        "CstLinProHermiteBasis"; "CstLinPhyHermiteBasis"]
         MB = MultiBasis(eval(Symbol(b))(m), Nx)
     else
-        error("The basis "*b*" is not defined.")
+        error("The basis " * b * " is not defined.")
     end
 
     return HermiteMapComponent(m, Nψ, Nx, IntegratedFunction(ExpandedFunction(MB, idx, coeff)), α)
 end
 
-function HermiteMapComponent(f::ExpandedFunction; α::Float64 = αreg)
+function HermiteMapComponent(f::ExpandedFunction; α::Float64=αreg)
     return HermiteMapComponent(f.m, f.Nψ, f.Nx, IntegratedFunction(f), α)
 end
 
-function HermiteMapComponent(m::Int64, Nx::Int64; α::Float64 = αreg, b::String="CstProHermiteBasis")
+function HermiteMapComponent(m::Int64, Nx::Int64; α::Float64=αreg, b::String="CstProHermiteBasis")
     Nψ = 1
 
     # m is the dimension of the basis
     if b ∈ ["ProHermiteBasis"; "PhyHermiteBasis";
-            "CstProHermiteBasis"; "CstPhyHermiteBasis";
-            "CstLinProHermiteBasis"; "CstLinPhyHermiteBasis"]
+        "CstProHermiteBasis"; "CstPhyHermiteBasis";
+        "CstLinProHermiteBasis"; "CstLinPhyHermiteBasis"]
         MB = MultiBasis(eval(Symbol(b))(m), Nx)
     else
-        error("The basis "*b*" is not defined.")
+        error("The basis " * b * " is not defined.")
     end
 
     idx = zeros(Int64, Nψ, Nx)
@@ -84,11 +84,11 @@ function HermiteMapComponent(m::Int64, Nx::Int64; α::Float64 = αreg, b::String
 
     f = ExpandedFunction(MB, idx, coeff)
     I = IntegratedFunction(f)
-    return HermiteMapComponent(I; α = α)
+    return HermiteMapComponent(I; α=α)
 end
 
 function Base.show(io::IO, C::HermiteMapComponent)
-    println(io,"Hermite map component of dimension "*string(C.Nx)*" with Nψ = "*string(C.Nψ)*" active features")
+    println(io, "Hermite map component of dimension " * string(C.Nx) * " with Nψ = " * string(C.Nψ) * " active features")
     # for i=1:MB.m
     #     println(io, B[i])
     # end
@@ -106,7 +106,7 @@ $(TYPEDSIGNATURES)
 
 Returns the coefficients of the `HermiteMapComponent` `C` to `coeff`.
 """
-getcoeff(C::HermiteMapComponent)= C.I.f.coeff
+getcoeff(C::HermiteMapComponent) = C.I.f.coeff
 
 """
 $(TYPEDSIGNATURES)
@@ -114,8 +114,8 @@ $(TYPEDSIGNATURES)
 Set the coefficients of the `HermiteMapComponent` `C` to `coeff`.
 """
 function setcoeff!(C::HermiteMapComponent, coeff::Array{Float64,1})
-        @assert size(coeff,1) == C.Nψ "Wrong dimension of coeff"
-        C.I.f.coeff .= coeff
+    @assert size(coeff, 1) == C.Nψ "Wrong dimension of coeff"
+    C.I.f.coeff .= coeff
 end
 
 """
@@ -155,8 +155,8 @@ $(TYPEDSIGNATURES)
 Evaluates in-place the `HermiteMapComponent` `C` for the ensemble matrix `X`.
 """
 function evaluate!(out, C::HermiteMapComponent, X)
-    @assert C.Nx==size(X,1) "Wrong dimension of the sample"
-    @assert size(out,1) == size(X,2) "Dimensions of the output and the samples don't match"
+    @assert C.Nx == size(X, 1) "Wrong dimension of the sample"
+    @assert size(out, 1) == size(X, 2) "Dimensions of the output and the samples don't match"
     return evaluate!(out, C.I, X)
 end
 
@@ -166,14 +166,14 @@ $(TYPEDSIGNATURES)
 Evaluates the `HermiteMapComponent` `C` for the ensemble matrix `X`.
 """
 evaluate(C::HermiteMapComponent, X::Array{Float64,2}) =
-    evaluate!(zeros(size(X,2)), C, X)
+    evaluate!(zeros(size(X, 2)), C, X)
 
 """
 $(TYPEDSIGNATURES)
 
 Evaluates the `HermiteMapComponent` `C` at `x`.
 """
-(C::HermiteMapComponent)(x::Array{Float64,1}) = evaluate(C, reshape(x, (size(x,1), 1)))
+(C::HermiteMapComponent)(x::Array{Float64,1}) = evaluate(C, reshape(x, (size(x, 1), 1)))
 
 ## Compute log_pdf
 
@@ -192,7 +192,7 @@ function log_pdf!(result, cache, C::HermiteMapComponent, X)
     evaluate!(result, C, X)
     cache .= grad_xd(C.I, X)
 
-    @avx for i=1:size(X,2)
+    @avx for i = 1:size(X, 2)
         result[i] = log_pdf(result[i]) + log(cache[i])
     end
 
@@ -205,7 +205,7 @@ $(TYPEDSIGNATURES)
 
 Evaluates the logarithm of the pullback of the reference density (standard normal) by the `HermiteMapComponent` `C`for the ensemble matrix `X`.
 """
-log_pdf(C::HermiteMapComponent, X) = log_pdf!(zeros(size(X,2)), zeros(size(X,2)), C, X)
+log_pdf(C::HermiteMapComponent, X) = log_pdf!(zeros(size(X, 2)), zeros(size(X, 2)), C, X)
 
 ## Compute grad_x_log_pdf
 
@@ -237,7 +237,7 @@ $(TYPEDSIGNATURES)
 
 Evaluates in-place the gradient of the logarithm of the pullback of the reference density (standard normal) by the `HermiteMapComponent` `C` for the ensemble matrix `X`.
 """
-grad_x_log_pdf(C::HermiteMapComponent, X) = grad_x_log_pdf!(zeros(size(X,2), size(X,1)), zeros(size(X,2)), C, X)
+grad_x_log_pdf(C::HermiteMapComponent, X) = grad_x_log_pdf!(zeros(size(X, 2), size(X, 1)), zeros(size(X, 2)), C, X)
 
 ## Compute hess_x_log_pdf
 
@@ -249,7 +249,7 @@ Evaluates in-place the hessian of the logarithm of the pullback of the reference
 function hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, X)
     NxX, Ne = size(X)
     Nx = C.Nx
-    
+
     @assert Nx == NxX "Wrong dimension of the sample"
     @assert size(result) == (Ne, NxX, NxX) "Wrong dimension of the result"
 
@@ -260,14 +260,14 @@ function hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, X)
 
     dim = active_dim(C)
 
-    @inbounds for i=1:length(dim)
-                for j=i:length(dim)
-                dcachei = view(dcache,:,dim[i])
-                dcachej = view(dcache,:,dim[j])
-                resultij = view(result,:,dim[i],dim[j])
-                resultji = view(result,:,dim[j], dim[i])
-                @avx @. resultij = resultij * cache + dcachei * dcachej
-                resultji .= resultij
+    @inbounds for i in eachindex(dim)
+        for j = i:length(dim)
+            dcachei = view(dcache, :, dim[i])
+            dcachej = view(dcache, :, dim[j])
+            resultij = view(result, :, dim[i], dim[j])
+            resultji = view(result, :, dim[j], dim[i])
+            @avx @. resultij = resultij * cache + dcachei * dcachej
+            resultji .= resultij
         end
     end
 
@@ -278,15 +278,15 @@ function hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, X)
     cached2log = vhess_x_logeval(C.I.g, cache)
     dcache .= grad_x_grad_xd(C.I.f, X)
 
-    @inbounds for i=1:length(dim)
-                for j=i:length(dim)
-                dcachei = view(dcache,:,dim[i])
-                dcachej = view(dcache,:,dim[j])
-                resultij = view(result,:,dim[i],dim[j])
-                resultji = view(result,:,dim[j], dim[i])
-                @avx @. resultij += dcachei * dcachej * cached2log
+    @inbounds for i in eachindex(dim)
+        for j = i:length(dim)
+            dcachei = view(dcache, :, dim[i])
+            dcachej = view(dcache, :, dim[j])
+            resultij = view(result, :, dim[i], dim[j])
+            resultji = view(result, :, dim[j], dim[i])
+            @avx @. resultij += dcachei * dcachej * cached2log
 
-                resultji .= resultij
+            resultji .= resultij
         end
     end
     #
@@ -301,9 +301,9 @@ $(TYPEDSIGNATURES)
 
 Evaluates the hessian of the logarithm of the pullback of the reference density (standard normal) by the `HermiteMapComponent` `C` for the ensemble matrix `X`.
 """
-hess_x_log_pdf(C::HermiteMapComponent, X) = hess_x_log_pdf!(zeros(size(X,2), size(X,1), size(X,1)),
-                                                     zeros(size(X,2), size(X,1)),
-                                                     zeros(size(X,2)), C, X)
+hess_x_log_pdf(C::HermiteMapComponent, X) = hess_x_log_pdf!(zeros(size(X, 2), size(X, 1), size(X, 1)),
+    zeros(size(X, 2), size(X, 1)),
+    zeros(size(X, 2)), C, X)
 
 
 
@@ -320,7 +320,7 @@ function reduced_hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, 
     Nx = C.Nx
 
     dim = active_dim(C)
-    dimoff = dim[dim .< Nx]
+    dimoff = dim[dim.<Nx]
 
 
     @assert Nx == NxX "Wrong dimension of the sample"
@@ -333,19 +333,19 @@ function reduced_hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, 
 
     dim = active_dim(C)
 
-    @inbounds for i=1:length(dim)
-        for j=i:length(dim)
-             # dcachei = view(dcache,:,dim[i])
-             # dcachej = view(dcache,:,dim[j])
-             # resultij = view(result,:,dim[i],dim[j])
-             # resultji = view(result,:,dim[j], dim[i])
-             dcachei = view(dcache,:,i)
-             dcachej = view(dcache,:,j)
-             resultij = view(result,:,i,j)
-             resultji = view(result,:,j,i)
-             @. resultij = resultij * cache + dcachei * dcachej
-             resultji .= resultij
-         end
+    @inbounds for i = 1:length(dim)
+        for j = i:length(dim)
+            # dcachei = view(dcache,:,dim[i])
+            # dcachej = view(dcache,:,dim[j])
+            # resultij = view(result,:,dim[i],dim[j])
+            # resultji = view(result,:,dim[j], dim[i])
+            dcachei = view(dcache, :, i)
+            dcachej = view(dcache, :, j)
+            resultij = view(result, :, i, j)
+            resultji = view(result, :, j, i)
+            @. resultij = resultij * cache + dcachei * dcachej
+            resultji .= resultij
+        end
     end
 
     rmul!(result, -1.0)
@@ -359,21 +359,21 @@ function reduced_hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, 
         # Clear dcache
         fill!(dcache, 0.0)
         reduced_grad_x_grad_xd!(dcache, C.I.f, X)
-        @inbounds for i=1:length(dim)
-             for j=i:length(dim)
-                 # dcachei = view(dcache,:,dim[i])
-                 # dcachej = view(dcache,:,dim[j])
-                 # resultij = view(result,:,dim[i],dim[j])
-                 # resultji = view(result,:,dim[j], dim[i])
-                 dcachei = view(dcache,:,i)
-                 dcachej = view(dcache,:,j)
-                 resultij = view(result,:,i,j)
-                 resultji = view(result,:,j, i)
-                 @avx @. resultij += dcachei * dcachej * cached2log
+        @inbounds for i = 1:length(dim)
+            for j = i:length(dim)
+                # dcachei = view(dcache,:,dim[i])
+                # dcachej = view(dcache,:,dim[j])
+                # resultij = view(result,:,dim[i],dim[j])
+                # resultji = view(result,:,dim[j], dim[i])
+                dcachei = view(dcache, :, i)
+                dcachej = view(dcache, :, j)
+                resultij = view(result, :, i, j)
+                resultji = view(result, :, j, i)
+                @avx @. resultij += dcachei * dcachej * cached2log
 
-                 resultji .= resultij
-             end
-         end
+                resultji .= resultij
+            end
+        end
     end
     grad_x_logeval!(cache, C.I.g, cache)
     result .+= reduced_hess_x_grad_xd(C.I.f, X) .* cache
@@ -382,8 +382,8 @@ function reduced_hess_x_log_pdf!(result, dcache, cache, C::HermiteMapComponent, 
 end
 
 
-reduced_hess_x_log_pdf(C::HermiteMapComponent, X) = reduced_hess_x_log_pdf!(zeros(size(X,2), length(active_dim(C)), length(active_dim(C))),
-                                                zeros(size(X,2), length(active_dim(C))), zeros(size(X,2)), C, X)
+reduced_hess_x_log_pdf(C::HermiteMapComponent, X) = reduced_hess_x_log_pdf!(zeros(size(X, 2), length(active_dim(C)), length(active_dim(C))),
+    zeros(size(X, 2), length(active_dim(C))), zeros(size(X, 2)), C, X)
 
 
 
@@ -404,15 +404,15 @@ function negative_log_likelihood!(J, dJ, coeff, S::Storage, C::HermiteMapCompone
     δ = 1e-9
 
     # Output objective, gradient
-    xlast = view(X,NxX,:)
+    xlast = view(X, NxX, :)
 
     fill!(S.cache_integral, 0.0)
 
     # Integrate at the same time for the objective, gradient
     function integrand!(v::Vector{Float64}, t::Float64)
-        repeated_grad_xk_basis!(S.cache_dcψxdt, S.cache_gradxd, C.I.f, t*xlast)
+        repeated_grad_xk_basis!(S.cache_dcψxdt, S.cache_gradxd, C.I.f, t * xlast)
 
-         # This computing is also reused in the computation of the gradient, no interest to skip it
+        # This computing is also reused in the computation of the gradient, no interest to skip it
         @avx @. S.cache_dcψxdt *= S.ψoff
         mul!(S.cache_dψxd, S.cache_dcψxdt, coeff)
 
@@ -420,7 +420,7 @@ function negative_log_likelihood!(J, dJ, coeff, S::Storage, C::HermiteMapCompone
         # @avx @. S.cache_dψxd = (S.cache_dcψxdt * S.ψoff) *ˡ coeff
 
         # Integration for J
-        vJ = view(v,1:Ne)
+        vJ = view(v, 1:Ne)
         evaluate!(vJ, C.I.g, S.cache_dψxd)
 
         # Integration for dcJ
@@ -433,7 +433,7 @@ function negative_log_likelihood!(J, dJ, coeff, S::Storage, C::HermiteMapCompone
         #     end
         # end
         # The reshape version is faster than unrolling
-        v[Ne+1:Ne+Ne*Nψ] .= reshape(S.cache_dψxd .* S.cache_dcψxdt , (Ne*Nψ))
+        v[Ne+1:Ne+Ne*Nψ] .= reshape(S.cache_dψxd .* S.cache_dcψxdt, (Ne * Nψ))
         # v[Ne+1:Ne+Ne*Nψ] .= reshape(grad_x(C.I.g, S.cache_dψxd) .* S.cache_dcψxdt , (Ne*Nψ))
     end
 
@@ -447,27 +447,27 @@ function negative_log_likelihood!(J, dJ, coeff, S::Storage, C::HermiteMapCompone
     # end
 
     # Multiply integral by xlast (change of variable in the integration)
-    @inbounds for j=1:Nψ+1
+    @inbounds for j = 1:Nψ+1
         @. S.cache_integral[(j-1)*Ne+1:j*Ne] *= xlast
     end
 
     # Add f(x_{1:d-1},0) i.e. (S.ψoff .* S.ψd0)*coeff to S.cache_integral
-    @avx for i=1:Ne
+    @avx for i = 1:Ne
         f0i = zero(Float64)
-        for j=1:Nψ
-            f0i += S.ψoffψd0[i,j]*coeff[j]
+        for j = 1:Nψ
+            f0i += S.ψoffψd0[i, j] * coeff[j]
         end
         # Add also the regularization term
-        S.cache_integral[i] += f0i + δ*xlast[i]
+        S.cache_integral[i] += f0i + δ * xlast[i]
 
     end
 
     # Store g(∂_{xk}f(x_{1:k})) in S.cache_g
 
-    @avx for i=1:Ne
+    @avx for i = 1:Ne
         prelogJi = zero(Float64)
-        for j=1:Nψ
-            prelogJi += S.ψoffdψxd[i,j]*coeff[j]
+        for j = 1:Nψ
+            prelogJi += S.ψoffdψxd[i, j] * coeff[j]
         end
         # Add also the regularization term
         S.cache_g[i] = prelogJi + δ
@@ -475,27 +475,27 @@ function negative_log_likelihood!(J, dJ, coeff, S::Storage, C::HermiteMapCompone
 
 
     # Formatting for Optim.jl
-    if dJ != nothing
+    if !isnothing(dJ)
         reshape_cacheintegral = reshape(S.cache_integral[Ne+1:end], (Ne, Nψ))
         fill!(dJ, 0.0)
-        @inbounds for i=1:Ne
-            for j=1:Nψ
-            dJ[j] += gradlog_pdf(S.cache_integral[i])*(reshape_cacheintegral[i,j] + S.ψoffψd0[i,j]) + # dsoftplus(S.cache_g[i])*S.ψoff[i,j]*S.dψxd[i,j]*(1/softplus(S.cache_g[i]))
-                     grad_x(C.I.g, S.cache_g[i])*S.ψoffdψxd[i,j]/C.I.g(S.cache_g[i])
+        @inbounds for i = 1:Ne
+            for j = 1:Nψ
+                dJ[j] += gradlog_pdf(S.cache_integral[i]) * (reshape_cacheintegral[i, j] + S.ψoffψd0[i, j]) + # dsoftplus(S.cache_g[i])*S.ψoff[i,j]*S.dψxd[i,j]*(1/softplus(S.cache_g[i]))
+                         grad_x(C.I.g, S.cache_g[i]) * S.ψoffdψxd[i, j] / C.I.g(S.cache_g[i])
             end
         end
-        rmul!(dJ, -1/Ne)
+        rmul!(dJ, -1 / Ne)
         # Add derivative of the L2 penalty term ∂_c α ||c||^2 = 2 *α c
-        dJ .+= 2*C.α*coeff
+        dJ .+= 2 * C.α * coeff
     end
 
-    if J != nothing
+    if !isnothing(J)
         J = 0.0
-        for i=1:Ne
+        for i = 1:Ne
             J += log_pdf(S.cache_integral[i]) + log(C.I.g(S.cache_g[i]))
         end
-        J *=(-1/Ne)
-        J += C.α*norm(coeff)^2
+        J *= (-1 / Ne)
+        J += C.α * norm(coeff)^2
         return J
     end
 end
@@ -521,109 +521,109 @@ function hess_negative_log_likelihood!(J, dJ, d2J, coeff, S::Storage, C::Hermite
 
     # Integrate at the same time for the objective, gradient
     function integrand!(v::Vector{Float64}, t::Float64)
-        S.cache_dcψxdt .= repeated_grad_xk_basis(C.I.f, t*xlast)
+        S.cache_dcψxdt .= repeated_grad_xk_basis(C.I.f, t * xlast)
 
         # @avx @. S.cache_dψxd = (S.cache_dcψxdt .* S.ψoff) *ˡ coeff
         S.cache_dcψxdt .*= S.ψoff
         mul!(S.cache_dψxd, S.cache_dcψxdt, coeff)
 
-        @inbounds for i=1:Nψ
-            for j=1:Nψ
-                dcdψouter[:,i,j] = S.cache_dcψxdt[:,i] .* S.cache_dcψxdt[:, j]
+        @inbounds for i = 1:Nψ
+            for j = 1:Nψ
+                dcdψouter[:, i, j] = S.cache_dcψxdt[:, i] .* S.cache_dcψxdt[:, j]
             end
         end
 
         # Integration for J
-        vJ = view(v,1:Ne)
+        vJ = view(v, 1:Ne)
         evaluate!(vJ, C.I.g, S.cache_dψxd)
         # v[1:Ne] .= C.I.g(S.cache_dψxd)
 
         # Integration for dcJ
-        v[Ne+1:Ne+Ne*Nψ] .= reshape(grad_x(C.I.g, S.cache_dψxd) .* S.cache_dcψxdt , (Ne*Nψ))
+        v[Ne+1:Ne+Ne*Nψ] .= reshape(grad_x(C.I.g, S.cache_dψxd) .* S.cache_dcψxdt, (Ne * Nψ))
 
         # Integration for d2cJ
-        v[Ne + Ne*Nψ + 1: Ne + Ne*Nψ + Ne*Nψ*Nψ] .= reshape(hess_x(C.I.g, S.cache_dψxd) .* dcdψouter, (Ne*Nψ*Nψ))
+        v[Ne+Ne*Nψ+1:Ne+Ne*Nψ+Ne*Nψ*Nψ] .= reshape(hess_x(C.I.g, S.cache_dψxd) .* dcdψouter, (Ne * Nψ * Nψ))
 
     end
 
     quadgk!(integrand!, S.cache_integral, 0.0, 1.0)#; rtol = 1e-3)#; order = 9, rtol = 1e-10)
 
     # Multiply integral by xlast (change of variable in the integration)
-    @inbounds for j=1:1 + Nψ# + Nψ*Nψ
+    @inbounds for j = 1:1+Nψ# + Nψ*Nψ
         @. S.cache_integral[(j-1)*Ne+1:j*Ne] *= xlast
     end
 
     # Add f(x_{1:d-1},0) i.e. (S.ψoff .* S.ψd0)*coeff to S.cache_integral
-    @avx for i=1:Ne
+    @avx for i = 1:Ne
         f0i = zero(Float64)
-        for j=1:Nψ
-            f0i += (S.ψoff[i,j] * S.ψd0[i,j])*coeff[j]
+        for j = 1:Nψ
+            f0i += (S.ψoff[i, j] * S.ψd0[i, j]) * coeff[j]
         end
         S.cache_integral[i] += f0i
     end
 
     # Store g(∂_{xk}f(x_{1:k})) in S.cache_g
-    @avx for i=1:Ne
+    @avx for i = 1:Ne
         prelogJi = zero(Float64)
-        for j=1:Nψ
-            prelogJi += (S.ψoff[i,j] * S.dψxd[i,j])*coeff[j]
+        for j = 1:Nψ
+            prelogJi += (S.ψoff[i, j] * S.dψxd[i, j]) * coeff[j]
         end
         S.cache_g[i] = prelogJi
     end
 
 
     # Formatting to use with Optim.jl
-    if dJ != nothing
+    if !isnothing(dJ)
         reshape_cacheintegral = reshape(S.cache_integral[Ne+1:Ne+Ne*Nψ], (Ne, Nψ))
         fil!(dJ, 0.0)#dJ .= zeros(Nψ)
-        @inbounds for i=1:Ne
+        @inbounds for i = 1:Ne
             # dJ .= zeros(Nψ)
-            for j=1:Nψ
-                dJ[j] += gradlog_pdf(S.cache_integral[i])*(reshape_cacheintegral[i,j] + S.ψoff[i,j]*S.ψd0[i,j])
-                dJ[j] += grad_x(C.I.g, S.cache_g[i])*S.ψoff[i,j]*S.dψxd[i,j]/C.I.g(S.cache_g[i])
+            for j = 1:Nψ
+                dJ[j] += gradlog_pdf(S.cache_integral[i]) * (reshape_cacheintegral[i, j] + S.ψoff[i, j] * S.ψd0[i, j])
+                dJ[j] += grad_x(C.I.g, S.cache_g[i]) * S.ψoff[i, j] * S.dψxd[i, j] / C.I.g(S.cache_g[i])
             end
         end
-        rmul!(dJ, -1/Ne)
+        rmul!(dJ, -1 / Ne)
         # Add derivative of the L2 penalty term ∂_c α ||c||^2 = 2 *α c
-        dJ .+= 2*C.α*coeff
+        dJ .+= 2 * C.α * coeff
     end
 
-    if d2J != nothing
+    if !isnothing(d2J)
         reshape_cacheintegral = reshape(S.cache_integral[Ne+1:Ne+Ne*Nψ], (Ne, Nψ))
-        reshape2_cacheintegral = reshape(S.cache_integral[Ne + Ne*Nψ + 1: Ne + Ne*Nψ + Ne*Nψ*Nψ], (Ne, Nψ, Nψ))
+        reshape2_cacheintegral = reshape(S.cache_integral[Ne+Ne*Nψ+1:Ne+Ne*Nψ+Ne*Nψ*Nψ], (Ne, Nψ, Nψ))
 
         fill!(d2J, 0.0)
         # d2J .= zeros(Nψ, Nψ)
-        @inbounds for l=1:Ne
+        @inbounds for l = 1:Ne
             # Exploit symmetry of the Hessian
-            for j=1:Nψ
-                for i=j:Nψ
-                d2J[i,j] +=  reshape2_cacheintegral[l,i,j]*S.cache_integral[l]
-                d2J[i,j] +=  (reshape_cacheintegral[l,i] + S.ψoff[l,i]*S.ψd0[l,i]) * (reshape_cacheintegral[l,j] + S.ψoff[l,j]*S.ψd0[l,j])
-                d2J[i,j] -=  ( (S.ψoff[l,i]*S.dψxd[l,i]) * (S.ψoff[l,j]*S.dψxd[l,j])*(
-                                hess_x(C.I.g, S.cache_g[l]) * C.I.g(S.cache_g[l]) -
-                                grad_x(C.I.g, S.cache_g[l])^2))/C.I.g(S.cache_g[l])^2
+            for j = 1:Nψ
+                for i = j:Nψ
+                    d2J[i, j] += reshape2_cacheintegral[l, i, j] * S.cache_integral[l]
+                    d2J[i, j] += (reshape_cacheintegral[l, i] + S.ψoff[l, i] * S.ψd0[l, i]) * (reshape_cacheintegral[l, j] + S.ψoff[l, j] * S.ψd0[l, j])
+                    d2J[i, j] -= ((S.ψoff[l, i] * S.dψxd[l, i]) * (S.ψoff[l, j] * S.dψxd[l, j]) * (
+                                      hess_x(C.I.g, S.cache_g[l]) * C.I.g(S.cache_g[l]) -
+                                      grad_x(C.I.g, S.cache_g[l])^2)) / C.I.g(S.cache_g[l])^2
 
-                d2J[j,i] = d2J[i,j]
+                    d2J[j, i] = d2J[i, j]
                 end
             end
         end
-        rmul!(d2J, 1/Ne)
+        rmul!(d2J, 1 / Ne)
         # Add derivative of the L2 penalty term ∂^2_c α ||c||^2 = 2 *α *I
-        @inbounds for i=1:Nψ
-            d2J[i,i] += 2*C.α*I
+        @inbounds for i = 1:Nψ
+            d2J[i, i] += 2 * C.α * I
         end
         # d2J = Symmetric(d2J)
         # return d2J
     end
 
-    if J != nothing
+    if !isnothing(J)
         J = 0.0
-        @inbounds for i=1:Ne
+        @inbounds for i = 1:Ne
             J += log_pdf(S.cache_integral[i]) + log(C.I.g(S.cache_g[i]))
         end
-        J *=(-1/Ne)
-        J += C.α*norm(coeff)^2
+        J *= (-1 / Ne)
+        J += C.α * norm(coeff)^2
         return J
     end
     # return J, dJ, d2J

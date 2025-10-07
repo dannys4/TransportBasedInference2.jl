@@ -3,25 +3,25 @@
 @testset "Test getreducedmargin d = 1" begin
     # d = 1
 
-    idx = reshape([0],(1,1))
+    idx = reshape([0], (1, 1))
 
     reducedmargin = getreducedmargin(idx)
 
-    @test reducedmargin == reshape([1],(1,1))
+    @test reducedmargin == reshape([1], (1, 1))
 
-    idx = reshape([0 ,1 , 2 ,3],(4,1))
+    idx = reshape([0, 1, 2, 3], (4, 1))
 
     reducedmargin = getreducedmargin(idx)
 
-    @test reducedmargin == reshape([4],(1,1))
+    @test reducedmargin == reshape([4], (1, 1))
 
     # Reorder variable
-    for i=1:1000
-        p = randperm(size(idx,1))
+    for i = 1:1000
+        p = randperm(size(idx, 1))
 
-        idxshuffle = idx[p,:]
+        idxshuffle = idx[p, :]
         reducedmargin = getreducedmargin(idx)
-        @test reducedmargin == reshape([4],(1,1))
+        @test reducedmargin == reshape([4], (1, 1))
     end
 end
 
@@ -38,10 +38,10 @@ end
     @test reducedmargin == [0 4; 1 2; 2 1; 4 0]
 
     # Reorder variable
-    for i=1:1000
-        p = randperm(size(idx,1))
+    for i = 1:1000
+        p = randperm(size(idx, 1))
 
-        idxshuffle = idx[p,:]
+        idxshuffle = idx[p, :]
         reducedmargin = getreducedmargin(idx)
         @test reducedmargin == [0 4; 1 2; 2 1; 4 0]
     end
@@ -64,23 +64,23 @@ end
     reducedmargin = getreducedmargin(idx)
 
     @test reducedmargin ==
-     [0     0     2;
-      0     2     0;
-      1     0     0;
-      1     1     1]
+          [0 0 2;
+        0 2 0;
+        1 0 0;
+        1 1 1]
 
 
     # Reorder variable
-    for i=1:1000
-        p = randperm(size(idx,1))
+    for i = 1:1000
+        p = randperm(size(idx, 1))
 
-        idxshuffle = idx[p,:]
+        idxshuffle = idx[p, :]
         reducedmargin = getreducedmargin(idx)
         @test reducedmargin ==
-         [0     0     2;
-          0     2     0;
-          1     0     0;
-          1     1     1]
+              [0 0 2;
+            0 2 0;
+            1 0 0;
+            1 1 1]
     end
 
 
@@ -89,7 +89,7 @@ end
 
     reducedmargin = getreducedmargin(idx)
 
-    @test reducedmargin == [ 0 0 4; 0 1 1; 0 2 0; 1 0 1; 2 0 0]
+    @test reducedmargin == [0 0 4; 0 1 1; 0 2 0; 1 0 1; 2 0 0]
 
 end
 
@@ -101,7 +101,7 @@ end
 
     reducedmargin = getreducedmargin(idx)
 
-    @test reducedmargin == [0 0 0 1; 0 0 1 0;0 1 0 0; 1 0 0 0]
+    @test reducedmargin == [0 0 0 1; 0 0 1 0; 0 1 0 0; 1 0 0 0]
 end
 
 
@@ -112,7 +112,7 @@ end
     reduced_margin0 = deepcopy(reduced_margin)
     lowerset0 = deepcopy(lowerset)
 
-    for idx = 1:size(reduced_margin,1)
+    for idx in axes(reduced_margin, 1)
         # @show idx
         new_lowerset, new_reduced_margin = updatereducedmargin(lowerset, reduced_margin, idx)
         # @show reduced_margin[idx,:]
@@ -121,11 +121,11 @@ end
         @test lowerset == lowerset0
         @test reduced_margin == reduced_margin0
 
-        @test new_lowerset[1:end-1,:] == lowerset0
+        @test new_lowerset[1:end-1, :] == lowerset0
 
-        @test new_lowerset[end,:] == reduced_margin[idx,:]
+        @test new_lowerset[end, :] == reduced_margin[idx, :]
 
-        @test all([any(x in eachslice(getreducedmargin(new_lowerset);dims = 1)) for x in eachslice(new_reduced_margin; dims = 1)])
+        @test all([any(x in eachslice(getreducedmargin(new_lowerset); dims=1)) for x in eachslice(new_reduced_margin; dims=1)])
     end
 end
 
@@ -137,7 +137,7 @@ end
     reduced_margin0 = deepcopy(reduced_margin)
     lowerset0 = deepcopy(lowerset)
 
-    for idx = 1:size(reduced_margin,1)
+    for idx in axes(reduced_margin, 1)
         # @show idx
         new_lowerset, new_reduced_margin = updatereducedmargin(lowerset, reduced_margin, idx)
         # @show reduced_margin[idx,:]
@@ -146,10 +146,10 @@ end
         @test lowerset == lowerset0
         @test reduced_margin == reduced_margin0
 
-        @test new_lowerset[1:end-1,:] == lowerset0
+        @test new_lowerset[1:end-1, :] == lowerset0
 
-        @test new_lowerset[end,:] == reduced_margin[idx,:]
+        @test new_lowerset[end, :] == reduced_margin[idx, :]
 
-        @test all([any(x in eachslice(getreducedmargin(new_lowerset);dims = 1)) for x in eachslice(new_reduced_margin; dims = 1)])
+        @test all([any(x in eachslice(getreducedmargin(new_lowerset); dims=1)) for x in eachslice(new_reduced_margin; dims=1)])
     end
 end
