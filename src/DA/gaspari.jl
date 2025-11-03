@@ -1,4 +1,4 @@
-export Localization, Locgaspari, Locgaspari_symm, periodicmetric, PeriodicMetric, cartesianmetric, gaspari
+export Localization, Locgaspari, Locgaspari_symm, PeriodicMetric, CartesianMetric, gaspari
 
 using SparseArrays
 
@@ -6,71 +6,61 @@ struct Localization{T<:Union{AbstractMatrix{Float64},LinearMap{Float64}}}
     ρX::T
 end
 
-function Localization(Nx::Int, L, metric::Function; kernel=nothing, is_sparse=false, is_herm=true)
-    isnothing(kernel) && (kernel = is_herm ? Locgaspari_symm : Locgaspari)
-    ρX_dense = kernel((Nx, Nx), L, metric)
+"""
+    Localization(grid, radius, metric; symm_kernel, )
+"""
+function Localization(grid::Vector{Float64}, radius::Float64, metric::Function; symm_kernel=false, is_sparse=false, herm_matrix=false)
+    ρX_dense = Locgaspari(grid, grid, radius, metric, symm_kernel)
     ρX_sparse = is_sparse ? sparse(ρX_dense) : ρX_dense
-    ρX = is_herm ? Hermitian(ρX_sparse, :U) : ρX_sparse
+    ρX = herm_matrix ? Hermitian(ρX_sparse, :U) : ρX_sparse
     Localization(ρX)
 end
 
-# function Locgaspari(d, L, periodic::Bool)
-#
-#     G = zeros(d,d)
-#     @inbounds for i=1:d
-#         # Check if the domain is periodic
-#         if periodic == true
-#             @inbounds for j=i:d
-#                 rdom = min(abs(j - i), abs(-d + (j-1) - i), abs(d + j - i))
-#                 G[i,j] = gaspari(rdom/L)
-#             end
-#         else
-#             @inbounds for j=i:d
-#             rdom = abs(j - i)
-#             G[i,j] = gaspari(rdom/L)
-#             end
-#         end
-#
-#     end
-#     return Symmetric(G)
-# end
+Localization(Nx::Int, args...; kwargs...) = Localization(1:Nx, args...; kwargs...)
 
 # Some metric for the distance between variables
-function periodicmetric(i, j, d)
-    dist1 = abs(j - i)
-    dist2 = abs((j - d) - i)
-    dist3 = abs(j - (i - d))
-    min(dist1, dist2, dist3)
+function periodicmetric(i, j, lower, upper)
+    i, j = extrema((i, j))
+    dist1 = j - i
+    dist2 = (upper - j) + (i - lower)
+    min(dist1, dist2)
 end
-PeriodicMetric(d) = (i, j) -> periodicmetric(i, j, d)
+PeriodicMetric(d) = (i, j) -> periodicmetric(i, j, 1, d)
+PeriodicMetric(lower, upper) = (i, j) -> periodicmetric(i, j, lower, upper)
 
 cartesianmetric(i, j) = abs(i - j)
+function CartesianMetric(type::Type{T}; Nvar::Int=1) where {T}
+    Nvar < 1 && throw(ArgumentError("Requires positive Nvar. Got Nvar=$Nvar."))
+    if T <: Int
+        if Nvar > 1
+            (i, j) -> cartesianmetric((i - 1) ÷ Nvar + 1, (j - 1) ÷ Nvar + 1)
+        else
+            cartesianmetric
+        end
+    else
+        cartesianmetric
+    end
+end
 
-# Construct a possibly non-symm localisation matrix using
-# the Gaspari-Cohn kernel
-function Locgaspari(d::NTuple{2,Int}, L, metric::Function)
-    dx, dy = d
+function Locgaspari(gridx::AbstractVector, gridy::AbstractVector, L, metric::Function, is_symm::Bool)
+    (issorted(gridx) && issorted(gridy)) || throw(ArgumentError("Expected input vectors to be sorted"))
+
+    dx, dy = length(gridx), length(gridy)
     G = zeros(dx, dy)
-    @inbounds for i = 1:dx, j = 1:dy
-        G[i, j] = gaspari(metric(i, j) / L)
+    @inbounds for idx in CartesianIndices(G)
+        i, j = Tuple(idx)
+        is_symm && i > j && continue
+        xi, yj = gridx[i], gridy[j]
+        eval_ij = gaspari(metric(xi, yj) / L)
+        G[i, j] = eval_ij
+        is_symm && (G[j, i] = eval_ij)
     end
-    return G
+    G
 end
 
-# Construct a possibly non-symm localisation matrix using
-# the Gaspari-Cohn kernel
-function Locgaspari_symm(dx::NTuple{2,Int}, L, metric::Function)
-    Nx = dx[1]
-    @assert dx[2] == Nx
-    G = zeros(Nx, Nx)
-    @inbounds for i = 1:Nx, j = i:Nx
-        G[i, j] = gaspari(abs(metric(i, j) / L))
-    end
-    return G
-end
+Locgaspari(dx::Int, dy::Int, args...) = Locgaspari(1:dx, 1:dy, args...)
 
-# Caspari-Cohn kernel, Formula found in Data assimilation in the geosciences:
-# An overview of methods, issues, and perspectives
+# Gaspari-Cohn kernel, Formula found in doi.org/10.1002/wcc.535, page 19
 @inline g1(r) = 1 - (5 / 3) * r^2 + (5 / 8) * r^3 + (1 / 2) * r^4 - 0.25 * r^5
 @inline g2(r) = 4 - 5r + (5 / 3) * r^2 + (5 / 8) * r^3 - (1 / 2) * r^4 + (1 / 12) * r^5 - (2 / 3) * r^(-1)
 @inline gaspari(r) = r > 2.0 ? 0.0 : r < 1.0 ? g1(r) : g2(r)
