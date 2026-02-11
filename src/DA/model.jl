@@ -1,4 +1,4 @@
-export Model, SyntheticData
+export Model, SyntheticData, partition
 
 """
         Model
@@ -24,19 +24,19 @@ struct Model
     "Dimension of the state variable"
     Nx::Int64
 
-	"Dimension of the observation variable"
+    "Dimension of the observation variable"
     Ny::Int64
 
-	"Time-step for the dynamical model"
+    "Time-step for the dynamical model"
     Δtdyn::Float64
 
-	"Time step between two observations of the state"
+    "Time step between two observations of the state"
     Δtobs::Float64
 
-	"Process noise"
+    "Process noise"
     ϵx::InflationType
 
-	"Observation noise"
+    "Observation noise"
     ϵy::InflationType
 
     "Multivariate distribution for the initial condition"
@@ -65,9 +65,21 @@ A structure to store the synthetic data in a twin-experiment
 - `yt` : history of the observations
 """
 struct SyntheticData
-	tt::Array{Float64,1}
-	Δt::Float64
-	x0::Array{Float64,1}
-	xt::Array{Float64,2}
-	yt::Array{Float64,2}
+    tt::Vector{Float64}
+    Δt::Float64
+    x0::Vector{Float64}
+    xt::Matrix{Float64}
+    yt::Matrix{Float64}
+end
+
+function partition(data::SyntheticData, lengths::NTuple{N,Int}) where {N}
+    sum(lengths) <= length(data.tt) || throw(ArgumentError("Unexpected lengths vector"))
+    idxs = (0, cumsum(lengths)...)
+    nt = fcn -> ntuple(fcn, N)
+    partitions = nt(j -> (idxs[j]+1):idxs[j+1])
+    tts = nt(j -> data.tt[partitions[j]])
+    x0s = nt(j -> j == 1 ? data.x0 : @view(data.xt[:, idxs[j]]))
+    xts = nt(j -> @view(data.xt[:, partitions[j]]))
+    yts = nt(j -> @view(data.yt[:, partitions[j]]))
+    SyntheticData.(tts, (data.Δt,), x0s, xts, yts)
 end

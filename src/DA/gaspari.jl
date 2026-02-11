@@ -7,11 +7,14 @@ struct Localization{T<:Union{AbstractMatrix{Float64},LinearMap{Float64}}}
 end
 
 """
-    Localization(grid, radius, metric; symm_kernel, )
+    Localization(grid, radius, metric, scale; symm_kernel, )
 """
-function Localization(grid::Vector{Float64}, radius::Float64, metric::Function; symm_kernel=false, is_sparse=false, herm_matrix=false)
-    ρX_dense = Locgaspari(grid, grid, radius, metric, symm_kernel)
+function Localization(grid::Vector{Float64}, radius::Float64, metric::Function, scale::Real=true; Nvar::Int=1, symm_kernel=false, is_sparse=false, herm_matrix=false)
+    ρX_dense = scale * Locgaspari(grid, grid, radius, metric, symm_kernel)
     ρX_sparse = is_sparse ? sparse(ρX_dense) : ρX_dense
+    if Nvar > 1
+        ρX_sparse = kron(ρX_sparse, ones(Nvar, Nvar))
+    end
     ρX = herm_matrix ? Hermitian(ρX_sparse, :U) : ρX_sparse
     Localization(ρX)
 end
@@ -29,7 +32,7 @@ PeriodicMetric(d) = (i, j) -> periodicmetric(i, j, 1, d)
 PeriodicMetric(lower, upper) = (i, j) -> periodicmetric(i, j, lower, upper)
 
 cartesianmetric(i, j) = abs(i - j)
-function CartesianMetric(type::Type{T}; Nvar::Int=1) where {T}
+function CartesianMetric(type::Type{T}=Float64; Nvar::Int=1) where {T}
     Nvar < 1 && throw(ArgumentError("Requires positive Nvar. Got Nvar=$Nvar."))
     if T <: Int
         if Nvar > 1
