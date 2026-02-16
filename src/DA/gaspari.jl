@@ -1,9 +1,17 @@
-export Localization, Locgaspari, Locgaspari_symm, PeriodicMetric, CartesianMetric, gaspari
+export AbstractLocalization, Localization, Locgaspari, Locgaspari_symm, PeriodicMetric, CartesianMetric, gaspari
 
 using SparseArrays
 
-struct Localization{T<:Union{AbstractMatrix{Float64},LinearMap{Float64}}}
+abstract type AbstractLocalization end
+
+struct Localization{T<:AbstractMatrix{Float64}}
     ρX::T
+end
+
+construct_mask!(_::Localization, _::Matrix{Float64}) = nothing
+
+function get_localization_mask(Loc::Localization)
+    return Loc.ρX
 end
 
 """
