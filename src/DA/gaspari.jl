@@ -1,16 +1,17 @@
-export AbstractLocalization, Localization, Locgaspari, Locgaspari_symm, PeriodicMetric, CartesianMetric, gaspari
+export AbstractLocalization, Localization, construct_mask!, get_localization_mask
+export Locgaspari, Locgaspari_symm, PeriodicMetric, CartesianMetric, gaspari
 
 using SparseArrays
 
 abstract type AbstractLocalization end
 
-struct Localization{T<:AbstractMatrix{Float64}}
+struct Localization{T<:AbstractMatrix{Float64}} <: AbstractLocalization
     ρX::T
 end
 
-construct_mask!(_::Localization, _::Matrix{Float64}) = nothing
+construct_mask!(::Localization{T}, ::Matrix{Float64}) where {T} = nothing
 
-function get_localization_mask(Loc::Localization)
+function get_localization_mask(Loc::Localization{T}) where {T}
     return Loc.ρX
 end
 
