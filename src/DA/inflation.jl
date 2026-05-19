@@ -2,9 +2,9 @@
 import Statistics: mean, cov
 
 
-export InflationType, IdentityInflation, AdditiveInflation,
+export InflationType, IdentityInflation, AdditiveInflation, RelativeAdditiveInflation,
     MultiplicativeInflation, MultiAddInflation,
-    exactn, has_nonzero_mean
+    exactn, has_nonzero_mean, get_cov
 
 
 
@@ -26,7 +26,6 @@ end
 # An abstract type for Inflation.
 """
 abstract type InflationType end
-
 
 """
     IdentityInflation <: InflationType
@@ -125,55 +124,97 @@ mean(A::AdditiveInflation) = A.m
 cov(A::AdditiveInflation) = A.Σ
 
 """
-        (A::AdditiveInflation)(X, start::Int64, final::Int64)
-
-
-Apply the additive inflation `A` to the lines `start` to `final` of an ensemble matrix `X`,
-i.e. xⁱ -> xⁱ + ϵⁱ with ϵⁱ ∼ `A.α`.
-"""
-function (A::AdditiveInflation)(X, start::Int64, final::Int64; laplace::Bool=false)
-    Ne = size(X, 2)
-    @assert A.Nx == final - start + 1 "final-start + 1 doesn't match the length of the additive noise"
-    # @show X[start:final, 1]
-    if laplace == false
-        @inbounds for i = 1:Ne
-            col = @view X[start:final, i]
-            col .+= A.m + A.σ * randn(A.Nx)
-        end
-    else
-        @inbounds for i = 1:Ne
-            col = view(X, start:final, i)
-            col .+= A.m + sqrt(2.0) * A.σ * randn(Laplace(), A.Nx)
-        end
-    end
-    # @show X[start:final, 1]
-end
-
-"""
-        (A::AdditiveInflation)(X)
-
-
-Apply the additive inflation `A` to an ensemble matrix `X`,
-i.e. xⁱ -> xⁱ + ϵⁱ with ϵⁱ ∼ `A.α`.
-"""
-(A::AdditiveInflation)(X; laplace::Bool=false) = A(X, 1, size(X, 1); laplace=laplace)
-
-"""
         (A::AdditiveInflation)(x::Array{Float64,1})
 
 Apply the additive inflation `A` to the vector `x`,
 i.e. x -> x + ϵ with ϵ ∼ `A.α`.
 """
-function (A::AdditiveInflation)(x::Array{Float64,1})
-    if has_nonzero_mean(A)
-        x .+= A.m + A.σ * randn(A.Nx)
+function (A::AdditiveInflation)(x::T, t::Float64, perturb::Bool = false, rand_workspace::Union{Nothing,T} = nothing) where {T<:AbstractVecOrMat{Float64}}
+    @assert size(x, 1) == A.Nx "Expected the first dimension of x to be of size $(A.Nx)"
+    if isnothing(rand_workspace)
+        rand_workspace = randn(size(x)...)
     else
-        mul!(x, A.σ, randn(A.Nx), true, true)
+        randn!(rand_workspace)
     end
-    return x
+    if has_nonzero_mean(A)
+        if perturb
+            x .-= A.m
+        else
+            x .+= A.m
+        end
+    end
+    mul!(x, A.σ, rand_workspace, true, true)
+    x
 end
 
 has_nonzero_mean(A::AdditiveInflation) = !(isnothing(A.m) || all(iszero, A.m))
+
+get_cov(A::AdditiveInflation, t = nothing) = A.Σ
+
+raw"""
+    ``X_t \sim \mathcal{N}(m, (\sigma + diag(offsets))^2)``
+"""
+struct RelativeAdditiveInflation{MeanT<:Union{AbstractVector{<:Real},Nothing},StdT<:AbstractMatrix{<:Real}} <: InflationType
+    "Dimension of the state vector"
+    Nx::Int64
+
+    "Mean of the additive inflation"
+    m::MeanT
+
+    "Times at which offset is recorded"
+    times::Vector{Float64}
+
+    "offset for which we create the inflation"
+    offsets::Matrix{Float64}
+
+    "Scaling of the offsets for the inflation"
+    offsets_scale::Float64
+
+    "Square-root of the covariance matrix"
+    σ_base::StdT
+    function RelativeAdditiveInflation(Nx, m::MT, T::Int, sigma_base::Union{<:Real, <:AbstractVector{<:Real}, <:AbstractMatrix{<:Real}}, offsets_scale::Float64) where {MT}
+        times = fill(Float64(Inf), T)
+        offsets = Matrix{Float64}(undef, Nx, T)
+        σ_base = nothing
+        if sigma_base isa Real
+            σ_base = sigma_base * I(Nx)
+        elseif sigma_base isa AbstractVector
+            length(sigma_base) == Nx || throw(ArgumentError("Expected length(sigma_base) == $Nx, got $(length(sigma_base))"))
+            σ_base = Diagonal(sigma_base)
+        else
+            σ_base = sigma_base
+        end
+        return new{MT, typeof(σ_base)}(Nx, m, times, offsets, offsets_scale, σ_base)
+    end
+end
+
+has_nonzero_mean(A::RelativeAdditiveInflation) = !(isnothing(A.m) || all(iszero, A.m))
+
+function (A::RelativeAdditiveInflation)(x::T, t::Float64, perturb::Bool = false, rand_workspace::Union{Nothing,T} = nothing) where {T<:AbstractVecOrMat{Float64}}
+    @assert size(x, 1) == A.Nx "Expected first dimension of x to be $(A.Nx)"
+    _,which_time = findmin(i-> abs(t - i), A.times)
+    std_t = A.offsets_scale * Diagonal(@view(A.offsets[:,which_time])) + A.σ_base
+    if has_nonzero_mean(A)
+        if perturb
+            x .-= A.m
+        else
+            x .+= A.m
+        end
+    end
+    if isnothing(rand_workspace)
+        rand_workspace = randn(size(x)...)
+    else
+        randn!(rand_workspace)
+    end
+    mul!(x, std_t, rand_workspace, true, true)
+    return x
+end
+
+function get_cov(A::RelativeAdditiveInflation, t)
+    _,which_time = findmin(i-> abs(t - i), A.times)
+    std_t = A.offsets_scale * Diagonal(@view(A.offsets[:,which_time])) + A.σ_base
+    std_t * std_t'
+end
 
 """
     MultiplicativeInflation <: InflationType
@@ -197,7 +238,7 @@ end
 Apply the multiplicative inflation `A` to the lines `start` to `final` of an ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  with β scalar, usually ∼ 1.0.
 """
-function (A::MultiplicativeInflation)(X, start::Int64, final::Int64)
+function (A::MultiplicativeInflation)(X, start::Int64, final::Int64, t::Float64, perturb::Bool)
     Ne = size(X, 2)
     X̂ = copy(mean(view(X, start:final, :), dims=2)[:, 1])
     @inbounds for i = 1:Ne
@@ -214,7 +255,7 @@ end
 Apply the multiplicative inflation `A` to an ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  with β scalar, usually ∼ 1.0.
 """
-(A::MultiplicativeInflation)(X) = A(X, 1, size(X, 1))
+(A::MultiplicativeInflation)(X, t, perturb=false) = A(X, 1, size(X, 1), t, perturb)
 
 
 """
@@ -309,7 +350,7 @@ end
 Apply the multiplicat inflation `A` to the lines `start` to `final` of an ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ with ϵⁱ ∼ `A.α` and β a scalar, usually ∼ 1.0.
 """
-function (A::MultiAddInflation)(X::AbstractMatrix{T}, start::Int64, final::Int64) where {T}
+function (A::MultiAddInflation)(X::AbstractMatrix{T}, start::Int64, final::Int64, t::Float64, perturb::Bool = false) where {T}
     # @assert A.Nx == final - start + 1 "Dimension does not match"
     Ne = size(X, 2)
     # X̂ = copy(mean(view(X, start:final,:), dims = 2)[:,1])
@@ -322,6 +363,9 @@ function (A::MultiAddInflation)(X::AbstractMatrix{T}, start::Int64, final::Int64
         # col .= A.β * (col - μX) + μX + A.m
         for col_idx in eachindex(col)
             m_val = isnothing(A.m) ? 0. : A.m[col_idx]
+            if perturb
+                rmul!(m_val, -1)
+            end
             col_val = col[col_idx]
             col[col_idx] = muladd(A.β, col_val - μX[col_idx], μX[col_idx] + m_val + A.σ*rand_space[col_idx])
         end
@@ -335,4 +379,4 @@ end
 Apply the multiplico-additive inflation `A` to the ensemble matrix `X`,
 i.e. xⁱ -> x̄ + β*(xⁱ - x̄)  + ϵⁱ with ϵⁱ ∼ `A.α` and β a scalar, usually ∼ 1.0.
 """
-(A::MultiAddInflation)(X) = A(X, 1, size(X, 1))
+(A::MultiAddInflation)(X, t) = A(X, 1, size(X, 1), t)
