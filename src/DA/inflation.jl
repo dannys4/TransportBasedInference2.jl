@@ -149,12 +149,32 @@ end
 
 has_nonzero_mean(A::AdditiveInflation) = !(isnothing(A.m) || all(iszero, A.m))
 
-get_cov(A::AdditiveInflation, t = nothing) = A.Σ
+get_cov(A::AdditiveInflation, t = nothing) = A.Σ * I(A.Nx)
+
+relative_affine_transformation(;scale::Float64, shift::Float64) = x -> muladd.(x, scale, shift)
 
 raw"""
-    ``X_t \sim \mathcal{N}(m, (\sigma + diag(offsets))^2)``
+Transformation to use when x is coming from a logarithmic transformation of the normal, i.e., exp(Z) should be affine transformed.
+
+The variance of the log-normal is ``s^2 = (exp(\sigma^2) - 1)m^2``, where ``\sigma`` is the variance of ``Z`` and ``m`` is the mean of ``\exp(Z)``.
+
+Then, if ``s^2 = (\gamma m + \lambda)^2``, we get that ``\sigma^2 = \log((\gamma + \lambda / m)^2 + 1)``.
 """
-struct RelativeAdditiveInflation{MeanT<:Union{AbstractVector{<:Real},Nothing},StdT<:AbstractMatrix{<:Real}} <: InflationType
+function relative_log_affine_transformation(;scale::Float64, shift::Float64)
+    if shift < 0
+        throw(ArgumentError("Expected shift >= 0, got $shift"))
+    end
+    log_shift = log(shift)
+    x -> map(x) do x_i
+        inner_quantity = scale + exp(log_shift - x_i)
+        sqrt(log1p(abs2(inner_quantity)))
+    end
+end
+
+raw"""
+    ``X_t \sim \mathcal{N}(m, diag(f.(X^*_t)^2),`` where ``X^*_t`` is some reference, cached value and `f` is an elementwise function.
+"""
+struct RelativeAdditiveInflation{MeanT<:Union{AbstractVector{<:Real},Nothing},F<:Function} <: InflationType
     "Dimension of the state vector"
     Nx::Int64
 
@@ -164,27 +184,23 @@ struct RelativeAdditiveInflation{MeanT<:Union{AbstractVector{<:Real},Nothing},St
     "Times at which offset is recorded"
     times::Vector{Float64}
 
-    "offset for which we create the inflation"
-    offsets::Matrix{Float64}
+    "time-dependent values inducing the inflation"
+    cache_values::Matrix{Float64}
 
-    "Scaling of the offsets for the inflation"
-    offsets_scale::Float64
-
-    "Square-root of the covariance matrix"
-    σ_base::StdT
-    function RelativeAdditiveInflation(Nx, m::MT, T::Int, sigma_base::Union{<:Real, <:AbstractVector{<:Real}, <:AbstractMatrix{<:Real}}, offsets_scale::Float64) where {MT}
-        times = fill(Float64(Inf), T)
-        offsets = Matrix{Float64}(undef, Nx, T)
-        σ_base = nothing
-        if sigma_base isa Real
-            σ_base = sigma_base * I(Nx)
-        elseif sigma_base isa AbstractVector
-            length(sigma_base) == Nx || throw(ArgumentError("Expected length(sigma_base) == $Nx, got $(length(sigma_base))"))
-            σ_base = Diagonal(sigma_base)
+    "Transformation from a set of values to a marginal standard deviation"
+    value_transformation::F
+    function RelativeAdditiveInflation(Nx, m::MT, T::Int, value_transformation_name::Symbol; transformation_kwargs...) where {MT}
+        value_fcn = nothing
+        if value_transformation_name == :affine
+            value_fcn = relative_affine_transformation(; transformation_kwargs...)
+        elseif value_transformation_name == :log_affine
+            value_fcn = relative_log_affine_transformation(; transformation_kwargs...)
         else
-            σ_base = sigma_base
+            throw(ArgumentError("Unexpected value_transformation_name=$value_transformation_name"))
         end
-        return new{MT, typeof(σ_base)}(Nx, m, times, offsets, offsets_scale, σ_base)
+        times = fill(Float64(Inf), T)
+        cache_values = Matrix{Float64}(undef, Nx, T)
+        return new{MT, typeof(value_fcn)}(Nx, m, times, cache_values, value_fcn)
     end
 end
 
@@ -193,7 +209,7 @@ has_nonzero_mean(A::RelativeAdditiveInflation) = !(isnothing(A.m) || all(iszero,
 function (A::RelativeAdditiveInflation)(x::T, t::Float64, perturb::Bool = false, rand_workspace::Union{Nothing,T} = nothing) where {T<:AbstractVecOrMat{Float64}}
     @assert size(x, 1) == A.Nx "Expected first dimension of x to be $(A.Nx)"
     _,which_time = findmin(i-> abs(t - i), A.times)
-    std_t = A.offsets_scale * Diagonal(@view(A.offsets[:,which_time])) + A.σ_base
+    std_t = Diagonal(A.value_transformation(@view(A.cache_values[:,which_time])))
     if has_nonzero_mean(A)
         if perturb
             x .-= A.m
@@ -212,8 +228,8 @@ end
 
 function get_cov(A::RelativeAdditiveInflation, t)
     _,which_time = findmin(i-> abs(t - i), A.times)
-    std_t = A.offsets_scale * Diagonal(@view(A.offsets[:,which_time])) + A.σ_base
-    std_t * std_t'
+    std_t = A.value_transformation(@view(A.cache_values[:,which_time]))
+    Diagonal(std_t.^2)
 end
 
 """
